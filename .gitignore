@@ -27,6 +27,7 @@ __pycache__/
 *.csv
 *.xlsx
 /data/
+filepath.py
 
 #개인정보
 *.pass

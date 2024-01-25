@@ -33,6 +33,12 @@ def preprocess_data(df):
     QList = []
     AList = []
 
+    #합친 데이터 불러오기
+    df = pd.read_csv(df)
+
+    # NaN 값 제거
+    df = df.dropna(subset=['Q', 'A'])
+
     #Q열 데이터를 저장
     df['Q_morphs'] = df['Q'].apply(mecab.morphs)
 
@@ -43,22 +49,25 @@ def preprocess_data(df):
 
     AList.extend(df['A_morphs'])
 
-    # 단어 사전 생성
+    #단어 사전 생성
     w2i = build_vocab(QList + AList)
 
-    # 형태소를 정수로 인코딩
-    df["Q_encoded"] = df["Q_morphs"].apply(lambda x: [w2i[w] for w in x])
-    df["A_encoded"] = df["A_morphs"].apply(lambda x: [w2i[w] for w in x])
+    #<UNK> 토큰을 추가
+    w2i['<UNK>'] = len(w2i)
 
-    # 가장 긴 문장의 길이를 계산
+    #형태소를 정수로 인코딩
+    df["Q_encoded"] = df["Q_morphs"].apply(lambda x: [w2i.get(w, w2i['<UNK>']) for w in x])
+    df["A_encoded"] = df["A_morphs"].apply(lambda x: [w2i.get(w, w2i['<UNK>']) for w in x])
+
+    #가장 긴 문장의 길이를 계산
     QMax_len = max(len(item) for item in df["Q_encoded"])
     AMax_len = max(len(item) for item in df["A_encoded"])
 
-    # 패딩을 적용
+    #패딩을 적용
     Q_padded = pad_sequences(df["Q_encoded"].tolist(), maxlen=QMax_len, padding='post')
     A_padded = pad_sequences(df["A_encoded"].tolist(), maxlen=AMax_len, padding='post')
 
-    # 추가할 열의 이름을 설정하고 데이터를 DataFrame에 추가
+    #추가할 열의 이름을 설정하고 데이터를 DataFrame에 추가
     df["Q_padded"] = Q_padded.tolist()
     df["A_padded"] = A_padded.tolist()
 
