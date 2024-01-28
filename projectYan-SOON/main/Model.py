@@ -1,21 +1,28 @@
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from tensorflow.keras.layers import Embedding
 
-def build_transformer_model(max_len, vocab_size, embedding_dim=256, num_heads=8, ff_dim=4):
+num_classes = 3
+
+def build_transformer_model(max_len, vocab_size, embedding_dim=256, num_heads=4, ff_dim=4):
+
     inputs = layers.Input(shape=(max_len,))
     
-    embedding_layer = layers.Embedding(input_dim=vocab_size, output_dim=embedding_dim)(inputs)
+    # 토큰 및 위치 임베딩 추가
+    embedding_layer = TokenAndPositionEmbedding(vocab_size, embedding_dim, max_len)(inputs)
+    
     transformer_block = TransformerBlock(embedding_dim, num_heads, ff_dim)(embedding_layer)
     transformer_block = TransformerBlock(embedding_dim, num_heads, ff_dim)(transformer_block)
     transformer_block = TransformerBlock(embedding_dim, num_heads, ff_dim)(transformer_block)
     
-    pooled_output = layers.GlobalAveragePooling1D()(transformer_block)
-    outputs = layers.Dense(1, activation='sigmoid')(pooled_output)
+    #pooled_output = layers.GlobalAveragePooling1D()(transformer_block)
+    outputs = layers.Dense(num_classes, activation='softmax')(transformer_block)
 
     model = keras.Model(inputs=inputs, outputs=outputs)
 
     return model
+
 
 class MultiHeadSelfAttention(layers.Layer):
     def __init__(self, embed_dim, num_heads=8):
@@ -50,11 +57,11 @@ class MultiHeadSelfAttention(layers.Layer):
         query = self.separate_heads(query, batch_size)
         key = self.separate_heads(key, batch_size)
         value = self.separate_heads(value, batch_size)
-        attention, weights = self.attention(query, key, value)
+        attention, weights = self.attention(query, key, value)  # attention 값을 반환
         attention = tf.transpose(attention, perm=[0, 2, 1, 3])
         concat_attention = tf.reshape(attention, (batch_size, -1, self.embed_dim))
         output = self.combine_heads(concat_attention)
-        return output
+        return output, weights
 
 class TransformerBlock(layers.Layer):
     def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
@@ -70,7 +77,7 @@ class TransformerBlock(layers.Layer):
         self.dropout2 = layers.Dropout(rate)
 
     def call(self, inputs):
-        attn_output = self.att(inputs)
+        attn_output, _ = self.att(inputs)  # attention_output 대신 attn_output 사용
         attn_output = self.dropout1(attn_output)
         out1 = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(out1)
@@ -91,9 +98,6 @@ class TokenAndPositionEmbedding(layers.Layer):
         return x + positions
 
 # 모델 생성
-max_len = 100  # 문장의 최대 길이
+max_len = 600  # 문장의 최대 길이
 vocab_size = 10000  # 단어 집합의 크기
 model = build_transformer_model(max_len, vocab_size)
-
-# 모델 요약 보기
-model.summary()

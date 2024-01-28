@@ -28,6 +28,7 @@ __pycache__/
 *.xlsx
 /data/
 filepath.py
+.pkl
 
 #개인정보
 *.pass
